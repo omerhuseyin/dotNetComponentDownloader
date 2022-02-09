@@ -2,15 +2,11 @@
 {
     using ByteSizeLib;
     using System;
-    using System.Collections.Generic;
     using System.ComponentModel;
-    using System.Data;
     using System.Drawing;
     using System.IO;
-    using System.Linq;
+    using System.Media;
     using System.Net;
-    using System.Text;
-    using System.Threading.Tasks;
     using System.Windows.Forms;
 
     public partial class MainForm : Form
@@ -20,17 +16,18 @@
             InitializeComponent();
         }
 
-        Point lastPoint;
-        Uri globalUri = null;
-        string downloadPath = string.Empty;
-        string downloadSize = string.Empty;
-        string targetFramework = string.Empty;
-        string combinedFile = string.Empty;
+        private Point lastPoint;
+        private Uri globalUri = null;
+        private string downloadPath = string.Empty;
+        private string downloadSize = string.Empty;
+        private string targetFramework = string.Empty;
+        private string combinedFile = string.Empty;
 
 
 
         private void pathButton_Click(object sender, EventArgs e)
         {
+            PlaySound("OPEN_SOUND");
             pathButton.Text = "Selecting...";
             FolderBrowserDialog folderDlg = new FolderBrowserDialog();
             folderDlg.ShowNewFolderButton = true;
@@ -50,50 +47,87 @@
 
         private void ProgressChanged(object sender, DownloadProgressChangedEventArgs e)
         {
-            string fileName = Path.Combine(downloadPath, targetFramework);
-            FileInfo fi = new FileInfo(fileName);
-            this.lblDownloadStatus.Visible = true;
-            lblDownloadSize.Visible = true;
-            lblDownloadSize.Text = ByteSize.FromBytes(fi.Length).ToString() + "/" + downloadSize;
-            downloadProgress.Visible = true;
-            downloadProgress.Value = e.ProgressPercentage;
+            try
+            {
+                string fileName = Path.Combine(downloadPath, targetFramework);
+                FileInfo fi = new FileInfo(fileName);
+                this.lblDownloadStatus.Visible = true;
+                lblDownloadSize.Visible = true;
+                lblDownloadSize.Text = ByteSize.FromBytes(fi.Length).ToString() + "/" + downloadSize;
+                downloadProgress.Visible = true;
+                downloadProgress.Value = e.ProgressPercentage;
+            }
+
+            catch (Exception ex) { MessageBox.Show(ex.Message);}
         }
 
         private static string GetFileSize(Uri uriPath)
         {
-            var webRequest = HttpWebRequest.Create(uriPath);
-            webRequest.Method = "HEAD";
-
-            using (var webResponse = webRequest.GetResponse())
+            try
             {
-                var fileSize = webResponse.Headers.Get("Content-Length");
-                var fileSizeInMegaByte = Math.Round(Convert.ToDouble(fileSize) / 1024.0 / 1024.0, 2);
-                return fileSizeInMegaByte + " MB";
+                var webRequest = HttpWebRequest.Create(uriPath);
+                webRequest.Method = "HEAD";
+
+                using (var webResponse = webRequest.GetResponse())
+                {
+                    var fileSize = webResponse.Headers.Get("Content-Length");
+                    var fileSizeInMegaByte = Math.Round(Convert.ToDouble(fileSize) / 1024.0 / 1024.0, 2);
+                    return fileSizeInMegaByte + " MB";
+                }
             }
+            catch (Exception ex)
+            {
+                MessageBox.Show(ex.Message);
+                return null;
+            }
+            
         }
 
         private void installButton_Click(object sender, EventArgs e)
         {
-            combinedFile = Path.Combine(downloadPath, targetFramework);
-            Uri globalUri = new Uri(Properties.Settings.Default.InstallerDomain + targetFramework);
-            if (!File.Exists(combinedFile))
+            try
             {
-                using (WebClient webClient = new WebClient())
+                combinedFile = Path.Combine(downloadPath, targetFramework);
+                Uri globalUri = new Uri(Properties.Settings.Default.InstallerDomain + targetFramework);
+                if (!File.Exists(combinedFile))
                 {
-                    installButton.Text = $"Installing";
-                    lblDownloadStatus.Text = $"Installing {targetFramework}";
-                    installButton.Enabled = false;
-                    webClient.DownloadFileCompleted += new AsyncCompletedEventHandler(Completed);
-                    webClient.DownloadProgressChanged += new DownloadProgressChangedEventHandler(ProgressChanged);
-                    webClient.DownloadFileAsync(globalUri, combinedFile);
-                    downloadSize = GetFileSize(globalUri);
-                } 
-            }
+                    using (WebClient webClient = new WebClient())
+                    {
+                        installButton.Text = $"Installing";
+                        lblDownloadStatus.Text = $"Installing {targetFramework}";
+                        installButton.Enabled = false;
+                        webClient.DownloadFileCompleted += new AsyncCompletedEventHandler(Completed);
+                        webClient.DownloadProgressChanged += new DownloadProgressChangedEventHandler(ProgressChanged);
+                        webClient.DownloadFileAsync(globalUri, combinedFile);
+                        downloadSize = GetFileSize(globalUri);
+                    }
+                }
 
-            else
-            {
-                MessageBox.Show($"You Already Have A Folder Called {targetFramework} In Your {downloadPath} Folder!");
+                else
+                {
+                    PlaySound("WARNING_SOUND");
+                    MessageBox.Show($"You Already Have A Folder Called {targetFramework} In Your {downloadPath} Folder!");
+                }
             }
+            catch (Exception ex) { MessageBox.Show(ex.Message);}
+
+        }
+
+        private void PlaySound(string param)
+        {
+            try
+            {
+                using (SoundPlayer player = new SoundPlayer())
+                {
+                    if (param == "SUCCESS_SOUND") player.SoundLocation = @"success.wav";
+                    else if (param == "OPEN_SOUND") player.SoundLocation = @"open.wav";
+                    else if (param == "WARNING_SOUND") player.SoundLocation = @"warning.wav";
+                    else if (param == "ERROR_SOUND") player.SoundLocation = @"error.wav";
+                    player.Play();
+                    player.Dispose();
+                }
+            }
+            catch (Exception ex) { MessageBox.Show(ex.Message);}
         }
 
         private void Completed(object sender, AsyncCompletedEventArgs e)
@@ -102,12 +136,13 @@
             downloadSize = string.Empty;
             targetFramework = string.Empty;
             combinedFile = string.Empty;
-            Uri globalUri = null;
+            globalUri = null;
             installButton.Text = "Install";
             installButton.Enabled = true;
             frameworkList.Text = "";
             frameworkList.SelectedItem = null;
             pathButton.Text = "Select Location";
+            PlaySound("SUCCESS_SOUND");
             lblDownloadStatus.Text = ($"{targetFramework} Successfully Installed!");
         }
 
@@ -118,7 +153,7 @@
 
             else if (downloadPath != string.Empty && targetFramework != string.Empty)
                 installButton.Enabled =true;
-            
+
         }
 
         private void frameworkList_SelectedValueChanged(object sender, EventArgs e)
