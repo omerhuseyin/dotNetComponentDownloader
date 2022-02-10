@@ -16,12 +16,12 @@
             InitializeComponent();
         }
 
-        private Point lastPoint;
-        private Uri globalUri = null;
-        private string downloadPath = string.Empty;
-        private string downloadSize = string.Empty;
-        private string targetFramework = string.Empty;
-        private string combinedFile = string.Empty;
+        private Point lastPoint = default(Point);
+        private Uri globalUri = default(Uri);
+        private string downloadPath = default(string);
+        private string downloadSize = default(string);
+        private string targetFramework = default(string);
+        private string combinedFile = default(string);
 
 
 
@@ -88,7 +88,7 @@
             try
             {
                 combinedFile = Path.Combine(downloadPath, targetFramework);
-                Uri globalUri = new Uri(Properties.Settings.Default.InstallerDomain + targetFramework);
+                globalUri = new Uri(Properties.Settings.Default.InstallerDomain + targetFramework);
                 if (!File.Exists(combinedFile))
                 {
                     using (WebClient webClient = new WebClient())
@@ -129,7 +129,7 @@
             }
             catch (Exception ex) { MessageBox.Show(ex.Message);}
         }
-
+            
         private void Completed(object sender, AsyncCompletedEventArgs e)
         {
             downloadPath = string.Empty;
